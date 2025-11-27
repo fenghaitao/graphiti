@@ -235,17 +235,17 @@ RRF provides a simple yet effective approach to combining multiple search rankin
 
 ```mermaid
 flowchart TD
-A[Search Method 1 Results] --> B[Assign Ranks]
-C[Search Method 2 Results] --> D[Assign Ranks]
-E[Search Method N Results] --> F[Assign Ranks]
-B --> G[Calculate 1/(rank+1)]
-D --> H[Calculate 1/(rank+1)]
-F --> I[Calculate 1/(rank+1)]
-G --> J[Average Scores]
-H --> J
-I --> J
-J --> K[Sort by Combined Score]
-K --> L[Final Ranked Results]
+    A["Search Method 1 Results"] --> B["Assign Ranks"]
+    C["Search Method 2 Results"] --> D["Assign Ranks"]
+    E["Search Method N Results"] --> F["Assign Ranks"]
+    B --> G["Calculate 1/(rank+1)"]
+    D --> H["Calculate 1/(rank+1)"]
+    F --> I["Calculate 1/(rank+1)"]
+    G --> J["Average Scores"]
+    H --> J
+    I --> J
+    J --> K["Sort by Combined Score"]
+    K --> L["Final Ranked Results"]
 ```
 
 **Diagram sources**
@@ -259,29 +259,29 @@ MMR balances relevance to the query with diversity among results, preventing ret
 
 ```mermaid
 graph LR
-subgraph "Query Vector"
-QV[Query Embedding]
-end
-subgraph "Candidate Set"
-C1[Candidate 1]
-C2[Candidate 2]
-C3[Candidate 3]
-CN[Candidate N]
-end
-subgraph "Similarity Calculations"
-SQR[Sim(Query, Candidate)]
-SIM[Sim(Candidate_i, Candidate_j)]
-end
-subgraph "MMR Score"
-MMR[MMR = λ·Sim(Q,C) + (1-λ)·max(Sim(Ci,Cj))]
-end
-QV --> SQR
-C1 --> SIM
-C2 --> SIM
-C3 --> SIM
-CN --> SIM
-SQR --> MMR
-SIM --> MMR
+    subgraph "Query Vector"
+        QV["Query Embedding"]
+    end
+    subgraph "Candidate Set"
+        C1["Candidate 1"]
+        C2["Candidate 2"]
+        C3["Candidate 3"]
+        CN["Candidate N"]
+    end
+    subgraph "Similarity Calculations"
+        SQR["Sim(Query, Candidate)"]
+        SIM["Sim(Candidate_i, Candidate_j)"]
+    end
+    subgraph "MMR Score"
+        MMR["MMR = λ·Sim(Q,C) + (1-λ)·max(Sim(Ci,Cj))"]
+    end
+    QV --> SQR
+    C1 --> SIM
+    C2 --> SIM
+    C3 --> SIM
+    CN --> SIM
+    SQR --> MMR
+    SIM --> MMR
 ```
 
 **Diagram sources**
