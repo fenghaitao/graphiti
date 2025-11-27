@@ -50,27 +50,27 @@ Graphiti's architecture is built around three fundamental components: **Episodes
 
 ```mermaid
 graph TB
-subgraph "Knowledge Graph Components"
-EP[Episodes] --> EN[Entities]
-EN --> ED[Relationships]
-EP --> ED
-subgraph "Temporal Dimensions"
-OC[Occurrence Time]
-IT[Ingestion Time]
-end
-ED --> OC
-ED --> IT
-end
-subgraph "Search Methods"
-SS[Semantic Similarity]
-KW[Keyword (BM25)]
-GT[Graph Traversal]
-HR[Hybrid Ranking]
-end
-ED --> SS
-ED --> KW
-ED --> GT
-ED --> HR
+    subgraph "Knowledge Graph Components"
+        EP["Episodes"] --> EN["Entities"]
+        EN --> ED["Relationships"]
+        EP --> ED
+        subgraph "Temporal Dimensions"
+            OC["Occurrence Time"]
+            IT["Ingestion Time"]
+        end
+        ED --> OC
+        ED --> IT
+    end
+    subgraph "Search Methods"
+        SS["Semantic Similarity"]
+        KW["Keyword (BM25)"]
+        GT["Graph Traversal"]
+        HR["Hybrid Ranking"]
+    end
+    ED --> SS
+    ED --> KW
+    ED --> GT
+    ED --> HR
 ```
 
 **Diagram sources**
@@ -148,19 +148,19 @@ Graphiti employs a sophisticated hybrid retrieval system that combines multiple 
 
 ```mermaid
 flowchart TD
-QUERY[Search Query] --> HYBRID[Hybrid Search Engine]
-HYBRID --> SEMANTIC[Semantic Similarity<br/>Embedding-based]
-HYBRID --> KEYWORD[Keyword (BM25)<br/>Full-text search]
-HYBRID --> GRAPH[Graph Traversal<br/>BFS/DFS]
-SEMANTIC --> RERANK[Reranking Engine]
-KEYWORD --> RERANK
-GRAPH --> RERANK
-RERANK --> CROSSENCODER[Cross-Encoder<br/>Re-ranking]
-RERANK --> MMR[Maximal Marginal<br/>Relevance]
-RERANK --> RRF[Reciprocal Rank<br/>Fusion]
-CROSSENCODER --> RESULTS[Final Results]
-MMR --> RESULTS
-RRF --> RESULTS
+    QUERY["Search Query"] --> HYBRID["Hybrid Search Engine"]
+    HYBRID --> SEMANTIC["Semantic Similarity<br/>Embedding-based"]
+    HYBRID --> KEYWORD["Keyword (BM25)<br/>Full-text search"]
+    HYBRID --> GRAPH["Graph Traversal<br/>BFS/DFS"]
+    SEMANTIC --> RERANK["Reranking Engine"]
+    KEYWORD --> RERANK
+    GRAPH --> RERANK
+    RERANK --> CROSSENCODER["Cross-Encoder<br/>Re-ranking"]
+    RERANK --> MMR["Maximal Marginal<br/>Relevance"]
+    RERANK --> RRF["Reciprocal Rank<br/>Fusion"]
+    CROSSENCODER --> RESULTS["Final Results"]
+    MMR --> RESULTS
+    RRF --> RESULTS
 ```
 
 **Diagram sources**
