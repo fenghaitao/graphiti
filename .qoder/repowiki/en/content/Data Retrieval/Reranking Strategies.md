@@ -94,17 +94,14 @@ The RRF algorithm combines results from multiple search methods using a harmonic
 
 ```mermaid
 flowchart TD
-A[Multiple Ranked Lists] --> B[Initialize Scores Dict]
-B --> C[Iterate Through Lists]
-C --> D[Calculate RRF Score]
-D --> E[Score = 1/(rank + constant)]
-E --> F[Accumulate Scores]
-F --> G[Sort by Total Score]
-G --> H[Apply Minimum Score Filter]
-H --> I[Return Ranked Results]
-style D fill:#e1f5fe
-style E fill:#f3e5f5
-style F fill:#e8f5e8
+    A["Multiple Ranked Lists"] --> B["Initialize Scores Dict"]
+    B --> C["Iterate Through Lists"]
+    C --> D["Calculate RRF Score"]
+    D --> E["Score = 1/(rank + constant)"]
+    E --> F["Accumulate Scores"]
+    F --> G["Sort by Total Score"]
+    G --> H["Apply Minimum Score Filter"]
+    H --> I["Return Ranked Results"]
 ```
 
 **Diagram sources**
@@ -149,15 +146,13 @@ The MMR algorithm computes scores that balance query relevance and intra-set div
 
 ```mermaid
 flowchart TD
-A[Query Vector & Candidates] --> B[Normalize Embeddings]
-B --> C[Build Similarity Matrix]
-C --> D[Calculate MMR Scores]
-D --> E[MMR = λ·Q·C + (λ-1)·max(Sim)]
-E --> F[Sort by MMR Score]
-F --> G[Apply Min Score Threshold]
-G --> H[Return Ranked Results]
-style D fill:#fff3e0
-style E fill:#fce4ec
+    A["Query Vector & Candidates"] --> B["Normalize Embeddings"]
+    B --> C["Build Similarity Matrix"]
+    C --> D["Calculate MMR Scores"]
+    D --> E["MMR = λ·Q·C + (λ-1)·max(Sim)"]
+    E --> F["Sort by MMR Score"]
+    F --> G["Apply Min Score Threshold"]
+    G --> H["Return Ranked Results"]
 ```
 
 **Diagram sources**

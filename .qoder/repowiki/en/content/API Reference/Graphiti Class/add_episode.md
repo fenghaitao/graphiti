@@ -272,26 +272,28 @@ The core NLP processing occurs here, involving multiple sophisticated steps:
 
 ```mermaid
 sequenceDiagram
-participant LLM as "LLM Client"
-participant Extractor as "Node Extractor"
-participant Resolver as "Node Resolver"
-participant Deduper as "Deduplication Engine"
-Note over Extractor : Step 1 : Initial Extraction
-Extractor->>LLM : extract_nodes(prompt_context)
-LLM-->>Extractor : Raw extracted entities
-Note over Extractor : Step 2 : Reflexion Loop
-loop Until Convergence or Max Iterations
-Extractor->>LLM : extract_nodes_reflexion(missed_entities)
-LLM-->>Extractor : Additional entities
-Extractor->>Extractor : Merge and deduplicate
-end
-Note over Resolver : Step 3 : Similarity Matching
-Resolver->>Resolver : resolve_extracted_nodes()
-Resolver->>Resolver : Semantic similarity comparison
-Note over Deduper : Step 4 : Deduplication
-Deduper->>Deduper : Union-Find algorithm
-Deduper->>Deduper : Canonical UUID assignment
-Note over Extractor,Resolver,Deduper : Parallel processing for efficiency
+    participant LLM as "LLM Client"
+    participant Extractor as "Node Extractor"
+    participant Resolver as "Node Resolver"
+    participant Deduper as "Deduplication Engine"
+    Note over Extractor : "Step 1 : Initial Extraction"
+    Extractor->>LLM : "extract_nodes(prompt_context)"
+    LLM-->>Extractor : "Raw extracted entities"
+    Note over Extractor : "Step 2 : Reflexion Loop"
+    loop "Until Convergence or Max Iterations"
+        Extractor->>LLM : "extract_nodes_reflexion(missed_entities)"
+        LLM-->>Extractor : "Additional entities"
+        Extractor->>Extractor : "Merge and deduplicate"
+    end
+    Note over Resolver : "Step 3 : Similarity Matching"
+    Resolver->>Resolver : "resolve_extracted_nodes()"
+    Resolver->>Resolver : "Semantic similarity comparison"
+    Note over Deduper : "Step 4 : Deduplication"
+    Deduper->>Deduper : "Union-Find algorithm"
+    Deduper->>Deduper : "Canonical UUID assignment"
+    Note over Extractor : "Parallel processing for efficiency"
+    Note over Resolver : "Parallel processing for efficiency"
+    Note over Deduper : "Parallel processing for efficiency"
 ```
 
 **Diagram sources**
