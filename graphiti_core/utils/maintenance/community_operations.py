@@ -209,31 +209,25 @@ async def generate_summary_description(llm_client: LLMClient, summary: str) -> s
 async def build_community(
     llm_client: LLMClient, community_cluster: list[EntityNode]
 ) -> tuple[CommunityNode, list[CommunityEdge]]:
-    # Simple tournament-style summarization
-    # Note: For true graph-aware hierarchical summarization, we would need
-    # the adjacency information, which isn't passed to this function.
-    # Current approach: pair adjacent nodes in degree-sorted order
-    # This approximates periphery→center but doesn't guarantee connectivity
     summaries = [entity.summary for entity in community_cluster]
     length = len(summaries)
-    
     while length > 1:
-        # Pair adjacent summaries in parallel
-        pairs = []
-        for i in range(0, length - 1, 2):
-            pairs.append((str(summaries[i]), str(summaries[i + 1])))
-        
-        # Process all pairs in parallel
+        odd_one_out: str | None = None
+        if length % 2 == 1:
+            odd_one_out = summaries.pop()
+            length -= 1
         new_summaries: list[str] = list(
             await semaphore_gather(
-                *[summarize_pair(llm_client, pair) for pair in pairs]
+                *[
+                    summarize_pair(llm_client, (str(left_summary), str(right_summary)))
+                    for left_summary, right_summary in zip(
+                        summaries[: int(length / 2)], summaries[int(length / 2) :], strict=False
+                    )
+                ]
             )
         )
-        
-        # If odd number, carry forward the last one
-        if length % 2 == 1:
-            new_summaries.append(summaries[-1])
-        
+        if odd_one_out is not None:
+            new_summaries.append(odd_one_out)
         summaries = new_summaries
         length = len(summaries)
 
