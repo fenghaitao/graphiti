@@ -185,7 +185,14 @@ async def summarize_pair(llm_client: LLMClient, summary_pair: tuple[str, str]) -
         prompt_name='summarize_nodes.summarize_pair',
     )
 
-    pair_summary = llm_response.get('summary', '')
+    # Handle both dict and string responses
+    if isinstance(llm_response, dict):
+        pair_summary = llm_response.get('summary', '')
+    elif isinstance(llm_response, str):
+        pair_summary = llm_response
+    else:
+        # Try to get summary attribute if it's an object
+        pair_summary = getattr(llm_response, 'summary', str(llm_response))
 
     return pair_summary
 
@@ -201,7 +208,14 @@ async def generate_summary_description(llm_client: LLMClient, summary: str) -> s
         prompt_name='summarize_nodes.summary_description',
     )
 
-    description = llm_response.get('description', '')
+    # Handle both dict and string responses
+    if isinstance(llm_response, dict):
+        description = llm_response.get('description', '')
+    elif isinstance(llm_response, str):
+        description = llm_response
+    else:
+        # Try to get description attribute if it's an object
+        description = getattr(llm_response, 'description', str(llm_response))
 
     return description
 
