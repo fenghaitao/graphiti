@@ -93,8 +93,14 @@ def label_propagation(projection: dict[str, list[Neighbor]]) -> list[list[str]]:
     community_map = {uuid: i for i, uuid in enumerate(projection.keys())}
 
     iteration = 0
-    while True:
+    MAX_ITERATIONS = 100  # Safety limit to prevent infinite loops
+    logger.info(f"Starting label propagation with {len(projection)} nodes")
+    
+    while iteration < MAX_ITERATIONS:
         iteration += 1
+        if iteration % 10 == 0:
+            logger.info(f"Label propagation iteration {iteration}")
+        
         no_change = True
         new_community_map: dict[str, int] = {}
         
@@ -164,6 +170,10 @@ def label_propagation(projection: dict[str, list[Neighbor]]) -> list[list[str]]:
             break
 
         community_map = new_community_map
+    
+    # If we hit max iterations without converging, log a warning
+    if iteration >= MAX_ITERATIONS:
+        logger.warning(f"Label propagation reached maximum iterations ({MAX_ITERATIONS}) without converging")
 
     community_cluster_map = defaultdict(list)
     for uuid, community in community_map.items():
@@ -217,6 +227,11 @@ async def generate_summary_description(llm_client: LLMClient, summary: str) -> s
         # Try to get description attribute if it's an object
         description = getattr(llm_response, 'description', str(llm_response))
 
+    # Log if description is empty
+    if not description or description.strip() == '':
+        logger.warning(f"Generated empty description for summary: {summary[:100]}...")
+        logger.warning(f"LLM response type: {type(llm_response)}, value: {llm_response}")
+    
     return description
 
 

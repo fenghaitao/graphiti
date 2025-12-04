@@ -127,11 +127,21 @@ class OpenAIGenericClient(LLMClient):
             max_tokens = self.max_tokens
 
         if response_model is not None:
-            serialized_model = json.dumps(response_model.model_json_schema())
+            schema = response_model.model_json_schema()
+            # Extract field descriptions for clearer instructions
+            properties = schema.get('properties', {})
+            field_list = []
+            for field_name, field_info in properties.items():
+                field_type = field_info.get('type', 'string')
+                field_desc = field_info.get('description', '')
+                field_list.append(f'  "{field_name}": {field_desc} ({field_type})')
+            
             messages[
                 -1
             ].content += (
-                f'\n\nRespond with a JSON object in the following format:\n\n{serialized_model}'
+                f'\n\nIMPORTANT: Respond with a JSON object containing actual data values (not a schema definition) with these fields:\n'
+                + '\n'.join(field_list) +
+                f'\n\nExample: {json.dumps({k: f"<your_{k}_here>" for k in properties.keys()})}'
             )
 
         # Add multilingual extraction instructions
