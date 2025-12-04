@@ -87,14 +87,27 @@ def label_propagation(projection: dict[str, list[Neighbor]]) -> list[list[str]]:
     # Implement the label propagation community detection algorithm.
     # 1. Start with each node being assigned its own community
     # 2. Each node will take on the community of the plurality of its neighbors
-    # 3. Ties are broken by going to the largest community
+    # 3. Ties are broken by internal edge weight and community size
     # 4. Continue until no communities change during propagation
 
     community_map = {uuid: i for i, uuid in enumerate(projection.keys())}
 
+    iteration = 0
     while True:
+        iteration += 1
         no_change = True
         new_community_map: dict[str, int] = {}
+        
+        # Pre-compute community metrics once per iteration for efficiency
+        community_edge_weights: dict[int, int] = defaultdict(int)
+        community_sizes: dict[int, int] = defaultdict(int)
+        
+        for node, comm in community_map.items():
+            community_sizes[comm] += 1
+            # Count internal edges (avoid double counting)
+            for neighbor in projection[node]:
+                if community_map[neighbor.node_uuid] == comm and node < neighbor.node_uuid:
+                    community_edge_weights[comm] += neighbor.edge_count
 
         for uuid, neighbors in projection.items():
             curr_community = community_map[uuid]
@@ -102,16 +115,44 @@ def label_propagation(projection: dict[str, list[Neighbor]]) -> list[list[str]]:
             community_candidates: dict[int, int] = defaultdict(int)
             for neighbor in neighbors:
                 community_candidates[community_map[neighbor.node_uuid]] += neighbor.edge_count
+            
+            # Add self-vote: node votes for its own community with weight equal to max neighbor edge
+            # This provides stability without preventing legitimate community formation
+            # Using max (not sum) allows neighbors to collectively pull node to their community
+            if neighbors:
+                max_edge_weight = max(n.edge_count for n in neighbors)
+                community_candidates[curr_community] += max_edge_weight
+            else:
+                # No neighbors, just stay
+                new_community_map[uuid] = curr_community
+                continue
+                
             community_lst = [
                 (count, community) for community, count in community_candidates.items()
             ]
 
             community_lst.sort(reverse=True)
-            candidate_rank, community_candidate = community_lst[0] if community_lst else (0, -1)
-            if community_candidate != -1 and candidate_rank > 1:
-                new_community = community_candidate
+            candidate_rank, community_candidate = community_lst[0]
+            
+            # Get all communities with max votes
+            max_communities = [comm for count, comm in community_lst if count == candidate_rank]
+            
+            # If there's a tie, break it by:
+            # 1. Total internal edge weight - denser communities win
+            # 2. Community size (number of members) - larger communities win
+            # 3. Community ID - for final determinism
+            if len(max_communities) > 1:
+                # Use pre-computed metrics for efficiency
+                community_metrics = [
+                    (community_edge_weights[comm], community_sizes[comm], comm)
+                    for comm in max_communities
+                ]
+                
+                # Sort by: edge weight DESC, size DESC, community ID ASC
+                community_metrics.sort(key=lambda x: (-x[0], -x[1], x[2]))
+                new_community = community_metrics[0][2]
             else:
-                new_community = max(community_candidate, curr_community)
+                new_community = community_candidate
 
             new_community_map[uuid] = new_community
 
@@ -119,6 +160,7 @@ def label_propagation(projection: dict[str, list[Neighbor]]) -> list[list[str]]:
                 no_change = False
 
         if no_change:
+            logger.info(f"Label propagation converged after {iteration} iterations")
             break
 
         community_map = new_community_map
@@ -167,25 +209,31 @@ async def generate_summary_description(llm_client: LLMClient, summary: str) -> s
 async def build_community(
     llm_client: LLMClient, community_cluster: list[EntityNode]
 ) -> tuple[CommunityNode, list[CommunityEdge]]:
+    # Simple tournament-style summarization
+    # Note: For true graph-aware hierarchical summarization, we would need
+    # the adjacency information, which isn't passed to this function.
+    # Current approach: pair adjacent nodes in degree-sorted order
+    # This approximates periphery→center but doesn't guarantee connectivity
     summaries = [entity.summary for entity in community_cluster]
     length = len(summaries)
+    
     while length > 1:
-        odd_one_out: str | None = None
-        if length % 2 == 1:
-            odd_one_out = summaries.pop()
-            length -= 1
+        # Pair adjacent summaries in parallel
+        pairs = []
+        for i in range(0, length - 1, 2):
+            pairs.append((str(summaries[i]), str(summaries[i + 1])))
+        
+        # Process all pairs in parallel
         new_summaries: list[str] = list(
             await semaphore_gather(
-                *[
-                    summarize_pair(llm_client, (str(left_summary), str(right_summary)))
-                    for left_summary, right_summary in zip(
-                        summaries[: int(length / 2)], summaries[int(length / 2) :], strict=False
-                    )
-                ]
+                *[summarize_pair(llm_client, pair) for pair in pairs]
             )
         )
-        if odd_one_out is not None:
-            new_summaries.append(odd_one_out)
+        
+        # If odd number, carry forward the last one
+        if length % 2 == 1:
+            new_summaries.append(summaries[-1])
+        
         summaries = new_summaries
         length = len(summaries)
 
