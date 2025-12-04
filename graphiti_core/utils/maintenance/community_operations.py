@@ -28,8 +28,14 @@ class Neighbor(BaseModel):
 
 async def get_community_clusters(
     driver: GraphDriver, group_ids: list[str] | None
-) -> list[list[EntityNode]]:
-    community_clusters: list[list[EntityNode]] = []
+) -> list[tuple[list[EntityNode], dict[str, int]]]:
+    """
+    Get community clusters with degree information for each node.
+    
+    Returns:
+        List of tuples (cluster_entities, node_degrees) where node_degrees maps uuid -> degree
+    """
+    community_clusters: list[tuple[list[EntityNode], dict[str, int]]] = []
 
     if group_ids is None:
         group_id_values, _, _ = await driver.execute_query(
@@ -70,15 +76,20 @@ async def get_community_clusters(
                 Neighbor(node_uuid=record['uuid'], edge_count=record['count']) for record in records
             ]
 
+        # Compute node degrees from projection
+        node_degrees = {uuid: len(neighbors) for uuid, neighbors in projection.items()}
+        
         cluster_uuids = label_propagation(projection)
 
-        community_clusters.extend(
-            list(
-                await semaphore_gather(
-                    *[EntityNode.get_by_uuids(driver, cluster) for cluster in cluster_uuids]
-                )
+        clusters = list(
+            await semaphore_gather(
+                *[EntityNode.get_by_uuids(driver, cluster) for cluster in cluster_uuids]
             )
         )
+        
+        # Attach degree info to each cluster
+        for cluster in clusters:
+            community_clusters.append((cluster, node_degrees))
 
     return community_clusters
 
@@ -207,27 +218,34 @@ async def generate_summary_description(llm_client: LLMClient, summary: str) -> s
 
 
 async def build_community(
-    llm_client: LLMClient, community_cluster: list[EntityNode]
+    llm_client: LLMClient, community_cluster: list[EntityNode], node_degrees: dict[str, int]
 ) -> tuple[CommunityNode, list[CommunityEdge]]:
-    summaries = [entity.summary for entity in community_cluster]
+    # Sort entities by degree (ascending): peripheral nodes first, hubs last
+    # This creates better hierarchical summaries: details → main themes
+    community_cluster_sorted = sorted(community_cluster, key=lambda e: node_degrees.get(e.uuid, 0))
+    
+    # Tournament-style summarization with adjacent pairing
+    # Pairs nodes with similar degrees, creating natural hierarchy
+    summaries = [entity.summary for entity in community_cluster_sorted]
     length = len(summaries)
+    
     while length > 1:
-        odd_one_out: str | None = None
-        if length % 2 == 1:
-            odd_one_out = summaries.pop()
-            length -= 1
+        # Pair adjacent summaries in parallel
+        pairs = []
+        for i in range(0, length - 1, 2):
+            pairs.append((str(summaries[i]), str(summaries[i + 1])))
+        
+        # Process all pairs in parallel
         new_summaries: list[str] = list(
             await semaphore_gather(
-                *[
-                    summarize_pair(llm_client, (str(left_summary), str(right_summary)))
-                    for left_summary, right_summary in zip(
-                        summaries[: int(length / 2)], summaries[int(length / 2) :], strict=False
-                    )
-                ]
+                *[summarize_pair(llm_client, pair) for pair in pairs]
             )
         )
-        if odd_one_out is not None:
-            new_summaries.append(odd_one_out)
+        
+        # If odd number, carry forward the last one
+        if length % 2 == 1:
+            new_summaries.append(summaries[-1])
+        
         summaries = new_summaries
         length = len(summaries)
 
@@ -236,12 +254,12 @@ async def build_community(
     now = utc_now()
     community_node = CommunityNode(
         name=name,
-        group_id=community_cluster[0].group_id,
+        group_id=community_cluster_sorted[0].group_id,
         labels=['Community'],
         created_at=now,
         summary=summary,
     )
-    community_edges = build_community_edges(community_cluster, community_node, now)
+    community_edges = build_community_edges(community_cluster_sorted, community_node, now)
 
     logger.debug((community_node, community_edges))
 
@@ -253,17 +271,18 @@ async def build_communities(
     llm_client: LLMClient,
     group_ids: list[str] | None,
 ) -> tuple[list[CommunityNode], list[CommunityEdge]]:
-    community_clusters = await get_community_clusters(driver, group_ids)
+    community_clusters_with_degrees = await get_community_clusters(driver, group_ids)
 
     semaphore = asyncio.Semaphore(MAX_COMMUNITY_BUILD_CONCURRENCY)
 
-    async def limited_build_community(cluster):
+    async def limited_build_community(cluster_and_degrees):
+        cluster, node_degrees = cluster_and_degrees
         async with semaphore:
-            return await build_community(llm_client, cluster)
+            return await build_community(llm_client, cluster, node_degrees)
 
     communities: list[tuple[CommunityNode, list[CommunityEdge]]] = list(
         await semaphore_gather(
-            *[limited_build_community(cluster) for cluster in community_clusters]
+            *[limited_build_community(item) for item in community_clusters_with_degrees]
         )
     )
 
